@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Emoji Art Translator</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    margin: 0;
+    padding: 20px;
+  }
+  canvas {
+    display: none;
+  }
+  #emojiCanvas {
+    font-size: 12px;
+    line-height: 1;
+    display: inline-block;
+  }
+</style>
+</head>
+<body>
+<h1>Emoji Art Translator</h1>
+<input type="file" id="imageInput" accept="image/*" />
+<br /><br />
+<div id="emojiCanvas"></div>
+<canvas id="hiddenCanvas"></canvas>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.0"></script>
+<script>
+const SIZE = 40; // grid size for emoji cells
+const emojiMap = {
+  person: '😊',
+  cat: '🐱',
+  dog: '🐶',
+  bird: '🐦',
+  car: '🚗',
+  coffee: '☕',
+  pizza: '🍕',
+  cake: '🍰',
+  flower: '🌸',
+  plant: '🌿',
+  phone: '📱',
+  computer: '💻',
+  shoe: '👟',
+  book: '📚',
+  keyboard: '⌨️',
+  mouse: '🖱️'
+};
+
+let model;
+async function loadModel() {
+  model = await mobilenet.load();
+}
+loadModel();
+
+function getEmoji(label) {
+  for (const key in emojiMap) {
+    if (label.includes(key)) {
+      return emojiMap[key];
+    }
+  }
+  return '❓';
+}
+
+document.getElementById('imageInput').addEventListener('change', async event => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const img = new Image();
+  img.src = URL.createObjectURL(file);
+  await img.decode();
+
+  const hiddenCanvas = document.getElementById('hiddenCanvas');
+  const ctx = hiddenCanvas.getContext('2d');
+  hiddenCanvas.width = img.width;
+  hiddenCanvas.height = img.height;
+  ctx.drawImage(img, 0, 0);
+
+  const numX = Math.ceil(img.width / SIZE);
+  const numY = Math.ceil(img.height / SIZE);
+  const emojiDiv = document.getElementById('emojiCanvas');
+  emojiDiv.style.fontSize = `${SIZE}px`;
+  emojiDiv.innerHTML = '';
+
+  for (let y = 0; y < numY; y++) {
+    const line = document.createElement('div');
+    for (let x = 0; x < numX; x++) {
+      const sx = x * SIZE;
+      const sy = y * SIZE;
+      const sWidth = Math.min(SIZE, img.width - sx);
+      const sHeight = Math.min(SIZE, img.height - sy);
+      const imageData = ctx.getImageData(sx, sy, sWidth, sHeight);
+      const tensor = tf.browser.fromPixels(imageData);
+      const resized = tf.image.resizeBilinear(tensor, [224, 224]);
+      const batched = resized.expandDims(0);
+      const predictions = await model.classify(batched);
+      tensor.dispose();
+      resized.dispose();
+      batched.dispose();
+      const emoji = getEmoji(predictions[0].className.toLowerCase());
+      const span = document.createElement('span');
+      span.textContent = emoji;
+      line.appendChild(span);
+    }
+    emojiDiv.appendChild(line);
+  }
+});
+</script>
+</body>
+</html>
