@@ -24,6 +24,7 @@
     margin: 0 auto;
   }
   #emojiCanvas {
+    position: relative;
     font-size: 12px;
     line-height: 1;
     display: inline-block;
@@ -32,9 +33,10 @@
     padding: 10px;
     overflow: hidden;
   }
-  #emojiCanvas div {
+  #emojiGrid div {
     white-space: nowrap;
   }
+  #overlay { position: absolute; top: 0; left: 0; pointer-events: none; }
   canvas {
     display: none;
   }
@@ -55,11 +57,12 @@
 </div>
 <div id="viewer">
   <video id="video" autoplay></video>
-  <div id="emojiCanvas"></div>
+  <div id="emojiCanvas"><div id="emojiGrid"></div><div id="overlay"></div></div>
 </div>
 <canvas id="hiddenCanvas"></canvas>
 <script src="tf.min.js"></script>
 <script src="coco-ssd.min.js"></script>
+<script src="body-pix.min.js"></script>
 <script>
 const BASE_EMOJI_SIZE = 12; // base emoji character size in pixels
 
@@ -164,24 +167,36 @@ const objectEmojis = {
   'hair drier': '💇',
   'toothbrush': '🪥'
 };
+const BODY_PARTS=["left_face","right_face","left_upper_arm_front","left_upper_arm_back","right_upper_arm_front","right_upper_arm_back","left_lower_arm_front","left_lower_arm_back","right_lower_arm_front","right_lower_arm_back","left_hand","right_hand","torso_front","torso_back","left_upper_leg_front","left_upper_leg_back","right_upper_leg_front","right_upper_leg_back","left_lower_leg_front","left_lower_leg_back","right_lower_leg_front","right_lower_leg_back","left_feet","right_feet"];
+const bodyPartEmojis={left_face:"🙂",right_face:"🙂",left_upper_arm_front:"💪",left_upper_arm_back:"💪",right_upper_arm_front:"💪",right_upper_arm_back:"💪",left_lower_arm_front:"💪",left_lower_arm_back:"💪",right_lower_arm_front:"💪",right_lower_arm_back:"💪",left_hand:"🤚",right_hand:"✋",torso_front:"👕",torso_back:"👕",left_upper_leg_front:"🦵",left_upper_leg_back:"🦵",right_upper_leg_front:"🦵",right_upper_leg_back:"🦵",left_lower_leg_front:"🦵",left_lower_leg_back:"🦵",right_lower_leg_front:"🦵",right_lower_leg_back:"🦵",left_feet:"🦶",right_feet:"🦶"};
 const video = document.getElementById('video');
 const imageInput = document.getElementById('imageInput');
 const startCamera = document.getElementById('startCamera');
 const sizeSlider = document.getElementById('sizeSlider');
-const emojiDiv = document.getElementById('emojiCanvas');
-const hiddenCanvas = document.getElementById('hiddenCanvas');
-const ctx = hiddenCanvas.getContext('2d');
+const emojiDiv = document.getElementById("emojiCanvas");
+const gridContainer = document.getElementById("emojiGrid");
+const overlay = document.getElementById("overlay");
+const hiddenCanvas = document.getElementById("hiddenCanvas");
+const ctx = hiddenCanvas.getContext("2d");
 let streaming = false;
 
 let detectionModel=null;
+let segmentationModel=null;
+let segmentation=null;
 let detections=[];
 cocoSsd.load().then(m=>{detectionModel=m;});
+bodyPix.load().then(m=>{segmentationModel=m;});
 // set initial emoji art width based on slider value
 async function runDetection() {
   if (!detectionModel) return;
   try {
     const preds = await detectionModel.detect(hiddenCanvas);
     detections = preds;
+    if (segmentationModel && preds.some(p=>p.class==="person")) {
+      segmentation = await segmentationModel.segmentPersonParts(hiddenCanvas);
+    } else {
+      segmentation = null;
+    }
   } catch (e) {
     console.error(e);
   }
@@ -256,12 +271,14 @@ function getClosestEmoji(color) {
 }
 
 function processCanvas() {
-  emojiDiv.innerHTML = '';
+  gridContainer.innerHTML = '';
+  overlay.innerHTML = '';
   if (hiddenCanvas.width === 0 || hiddenCanvas.height === 0) return;
   const numX = Math.max(1, Math.floor(emojiDiv.clientWidth / BASE_EMOJI_SIZE));
   const emojiSize = emojiDiv.clientWidth / numX;
   const cellSize = hiddenCanvas.width / numX;
   const numY = Math.ceil(hiddenCanvas.height / cellSize);
+  const scale = emojiDiv.clientWidth / hiddenCanvas.width;
   emojiDiv.style.fontSize = emojiSize + 'px';
 
   const grid = [];
@@ -275,22 +292,6 @@ function processCanvas() {
     }
   }
 
-  for (const det of detections) {
-    const [bx, by, bw, bh] = det.bbox;
-    const emoji = objectEmojis[det.class] || '❓';
-    const startX = Math.floor(bx / cellSize);
-    const startY = Math.floor(by / cellSize);
-    const endX = Math.min(numX, Math.ceil((bx + bw) / cellSize));
-    const endY = Math.min(numY, Math.ceil((by + bh) / cellSize));
-    for (let y = startY; y < endY; y++) {
-      for (let x = startX; x < endX; x++) {
-        if (y >= 0 && x >= 0 && y < numY && x < numX) {
-          grid[y][x] = emoji;
-        }
-      }
-    }
-  }
-
   for (let y = 0; y < numY; y++) {
     const line = document.createElement('div');
     line.style.whiteSpace = 'nowrap';
@@ -299,7 +300,67 @@ function processCanvas() {
       span.textContent = grid[y][x];
       line.appendChild(span);
     }
-    emojiDiv.appendChild(line);
+    gridContainer.appendChild(line);
+  }
+
+  for (const det of detections) {
+    const [bx, by, bw, bh] = det.bbox;
+    const emoji = objectEmojis[det.class] || '❓';
+    const w = bw * scale;
+    const h = bh * scale;
+    const s = Math.min(w, h);
+    let left = bx * scale;
+    let top = by * scale;
+    if (h > w) {
+      left += (w - s) / 2;
+    } else {
+      left += (w - s) / 2;
+      top += (h - s) / 2;
+    }
+    const span = document.createElement('span');
+    span.textContent = emoji;
+    span.style.position = 'absolute';
+    span.style.fontSize = s + 'px';
+    span.style.left = left + 'px';
+    span.style.top = top + 'px';
+    overlay.appendChild(span);
+  }
+
+  if (segmentation && segmentation.data) {
+    const {width, height, data} = segmentation;
+    for (let part = 0; part < BODY_PARTS.length; part++) {
+      let minX = width, minY = height, maxX = -1, maxY = -1;
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          if (data[y * width + x] === part) {
+            if (x < minX) minX = x;
+            if (y < minY) minY = y;
+            if (x > maxX) maxX = x;
+            if (y > maxY) maxY = y;
+          }
+        }
+      }
+      if (maxX >= minX && bodyPartEmojis[BODY_PARTS[part]]) {
+        const bw = (maxX - minX + 1) * scale;
+        const bh = (maxY - minY + 1) * scale;
+        const s = Math.min(bw, bh);
+        let left = minX * scale;
+        let top = minY * scale;
+        if (bh > bw) {
+          left += (bw - s) / 2;
+        } else {
+          left += (bw - s) / 2;
+          top += (bh - s) / 2;
+        }
+        const span = document.createElement('span');
+        span.textContent = bodyPartEmojis[BODY_PARTS[part]];
+        span.style.position = 'absolute';
+        span.style.fontSize = s + 'px';
+        span.style.left = left + 'px';
+        span.style.top = top + 'px';
+        overlay.appendChild(span);
+      }
+    }
   }
 }
 </script>
