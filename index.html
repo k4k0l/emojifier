@@ -9,25 +9,33 @@
     text-align: center;
     margin: 0;
     padding: 20px;
+    background: #f4f4f4;
   }
-  canvas, video {
-    display: none;
+  #controls {
+    margin-bottom: 20px;
   }
   #emojiCanvas {
     font-size: 12px;
     line-height: 1;
     display: inline-block;
+    max-width: 800px;
+    border: 1px solid #ccc;
+    background: #fff;
+    padding: 10px;
+  }
+  canvas, video {
+    display: none;
   }
 </style>
 </head>
 <body>
 <h1>Emoji Pixel Art</h1>
-<input type="file" id="imageInput" accept="image/*" />
-<button id="startCamera">Use Webcam</button>
-<button id="capture" style="display:none">Capture</button>
-<video id="video" autoplay></video>
-<br /><br />
+<div id="controls">
+  <input type="file" id="imageInput" accept="image/*" />
+  <button id="startCamera">Start Camera</button>
+</div>
 <div id="emojiCanvas"></div>
+<video id="video" autoplay></video>
 <canvas id="hiddenCanvas"></canvas>
 <script>
 const EMOJI_SIZE = 12; // size of emoji characters in pixels
@@ -54,27 +62,20 @@ const colorEmojis = [
 const video = document.getElementById('video');
 const imageInput = document.getElementById('imageInput');
 const startCamera = document.getElementById('startCamera');
-const captureBtn = document.getElementById('capture');
 const emojiDiv = document.getElementById('emojiCanvas');
 const hiddenCanvas = document.getElementById('hiddenCanvas');
 const ctx = hiddenCanvas.getContext('2d');
+let streaming = false;
 
 startCamera.addEventListener('click', async () => {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ video: true });
     video.srcObject = stream;
-    video.style.display = 'block';
-    captureBtn.style.display = 'inline-block';
+    streaming = true;
+    requestAnimationFrame(updateFrame);
   } catch (e) {
     alert('Unable to access camera');
   }
-});
-
-captureBtn.addEventListener('click', () => {
-  hiddenCanvas.width = video.videoWidth;
-  hiddenCanvas.height = video.videoHeight;
-  ctx.drawImage(video, 0, 0);
-  processCanvas();
 });
 
 imageInput.addEventListener('change', async event => {
@@ -89,11 +90,18 @@ imageInput.addEventListener('change', async event => {
   processCanvas();
 });
 
+function updateFrame() {
+  if (!streaming) return;
+  hiddenCanvas.width = video.videoWidth;
+  hiddenCanvas.height = video.videoHeight;
+  ctx.drawImage(video, 0, 0);
+  processCanvas();
+  requestAnimationFrame(updateFrame);
+}
+
 function getAverageColor(sx, sy, size) {
   const data = ctx.getImageData(sx, sy, size, size).data;
-  let r = 0,
-    g = 0,
-    b = 0;
+  let r = 0, g = 0, b = 0;
   for (let i = 0; i < data.length; i += 4) {
     r += data[i];
     g += data[i + 1];
@@ -107,10 +115,7 @@ function getClosestEmoji(color) {
   let best = colorEmojis[0].emoji;
   let bestDist = Infinity;
   for (const { emoji, color: c } of colorEmojis) {
-    const dist =
-      (color[0] - c[0]) ** 2 +
-      (color[1] - c[1]) ** 2 +
-      (color[2] - c[2]) ** 2;
+    const dist = (color[0] - c[0]) ** 2 + (color[1] - c[1]) ** 2 + (color[2] - c[2]) ** 2;
     if (dist < bestDist) {
       bestDist = dist;
       best = emoji;
@@ -121,7 +126,7 @@ function getClosestEmoji(color) {
 
 function processCanvas() {
   emojiDiv.innerHTML = '';
-  const numX = Math.floor(window.innerWidth / EMOJI_SIZE);
+  const numX = Math.floor(emojiDiv.clientWidth / EMOJI_SIZE);
   const cellSize = hiddenCanvas.width / numX;
   const numY = Math.ceil(hiddenCanvas.height / cellSize);
   emojiDiv.style.fontSize = EMOJI_SIZE + 'px';

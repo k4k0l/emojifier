@@ -1,7 +1,10 @@
 # Emojifier
 
-This simple web application converts an image or webcam snapshot into a grid of emojis.
+This simple web application converts images or your webcam feed into a grid of emojis.
 
-1. Select an image or use your webcam.
-2. The picture is divided into blocks that fit your screen width.
-3. Each block's average colour is matched to a coloured emoji creating a pixel‑art effect.
+1. Select an image or start the camera.
+2. The picture is divided into blocks that fit the art area (max 800px wide).
+3. Each block's average colour is matched to a coloured emoji creating a pixel-art effect.
+4. When using the camera the emoji art updates in real time.
+
+Future versions will overlay emojis representing detected objects on top of the emoji art.
