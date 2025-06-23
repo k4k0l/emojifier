@@ -58,28 +58,112 @@
   <div id="emojiCanvas"></div>
 </div>
 <canvas id="hiddenCanvas"></canvas>
+<script src="tf.min.js"></script>
+<script src="coco-ssd.min.js"></script>
 <script>
 const BASE_EMOJI_SIZE = 12; // base emoji character size in pixels
 
 const colorEmojis = [
   { emoji: '⬛', color: [0, 0, 0] },
   { emoji: '⬜', color: [255, 255, 255] },
-  { emoji: '🟥', color: [210, 24, 30] },
-  { emoji: '🟧', color: [255, 165, 0] },
-  { emoji: '🟨', color: [255, 255, 0] },
-  { emoji: '🟩', color: [0, 128, 0] },
-  { emoji: '🟦', color: [0, 0, 255] },
-  { emoji: '🟪', color: [128, 0, 128] },
-  { emoji: '🟫', color: [165, 42, 42] },
+  { emoji: '🟥', color: [220, 30, 70] },
+  { emoji: '🟧', color: [255, 110, 20] },
+  { emoji: '🟨', color: [255, 200, 40] },
+  { emoji: '🟩', color: [0, 160, 0] },
+  { emoji: '🟦', color: [50, 90, 220] },
+  { emoji: '🟪', color: [160, 60, 180] },
+  { emoji: '🟫', color: [120, 70, 40] },
   { emoji: '🔴', color: [255, 0, 0] },
-  { emoji: '🟠', color: [255, 140, 0] },
-  { emoji: '🟡', color: [255, 215, 0] },
-  { emoji: '🟢', color: [0, 255, 0] },
+  { emoji: '🟠', color: [255, 130, 0] },
+  { emoji: '🟡', color: [255, 255, 80] },
+  { emoji: '🟢', color: [0, 200, 0] },
   { emoji: '🔵', color: [0, 0, 255] },
-  { emoji: '🟣', color: [186, 85, 211] },
+  { emoji: '🟣', color: [180, 70, 200] },
   { emoji: '🟤', color: [150, 75, 0] }
 ];
 
+const objectEmojis = {
+  'person': '🧑',
+  'bicycle': '🚲',
+  'car': '🚗',
+  'motorcycle': '🏍️',
+  'airplane': '✈️',
+  'bus': '🚌',
+  'train': '🚆',
+  'truck': '🚚',
+  'boat': '⛵',
+  'traffic light': '🚦',
+  'fire hydrant': '🚒',
+  'stop sign': '🛑',
+  'parking meter': '🅿️',
+  'bench': '🪑',
+  'bird': '🐦',
+  'cat': '🐱',
+  'dog': '🐶',
+  'horse': '🐴',
+  'sheep': '🐑',
+  'cow': '🐮',
+  'elephant': '🐘',
+  'bear': '🐻',
+  'zebra': '🦓',
+  'giraffe': '🦒',
+  'backpack': '🎒',
+  'umbrella': '☂️',
+  'handbag': '👜',
+  'tie': '👔',
+  'suitcase': '💼',
+  'frisbee': '🥏',
+  'skis': '🎿',
+  'snowboard': '🏂',
+  'sports ball': '⚽',
+  'kite': '🪁',
+  'baseball bat': '⚾',
+  'baseball glove': '🥎',
+  'skateboard': '🛹',
+  'surfboard': '🏄',
+  'tennis racket': '🎾',
+  'bottle': '🍾',
+  'wine glass': '🍷',
+  'cup': '☕',
+  'fork': '🍴',
+  'knife': '🔪',
+  'spoon': '🥄',
+  'bowl': '🥣',
+  'banana': '🍌',
+  'apple': '🍎',
+  'sandwich': '🥪',
+  'orange': '🍊',
+  'broccoli': '🥦',
+  'carrot': '🥕',
+  'hot dog': '🌭',
+  'pizza': '🍕',
+  'donut': '🍩',
+  'cake': '🎂',
+  'chair': '🪑',
+  'couch': '🛋️',
+  'potted plant': '🪴',
+  'bed': '🛏️',
+  'dining table': '🍽️',
+  'toilet': '🚽',
+  'tv': '📺',
+  'laptop': '💻',
+  'mouse': '🖱️',
+  'remote': '🎛️',
+  'keyboard': '⌨️',
+  'cell phone': '📱',
+  'microwave': '♨️',
+  'oven': '🔥',
+  'toaster': '🍞',
+  'sink': '🚰',
+  'refrigerator': '🧊',
+  'book': '📚',
+  'clock': '⏰',
+  'vase': '🏺',
+  'scissors': '✂️',
+  'teddy bear': '🧸',
+  'hair drier': '💇',
+  'toothbrush': '🪥'
+};
 const video = document.getElementById('video');
 const imageInput = document.getElementById('imageInput');
 const startCamera = document.getElementById('startCamera');
@@ -89,7 +173,19 @@ const hiddenCanvas = document.getElementById('hiddenCanvas');
 const ctx = hiddenCanvas.getContext('2d');
 let streaming = false;
 
+let detectionModel=null;
+let detections=[];
+cocoSsd.load().then(m=>{detectionModel=m;});
 // set initial emoji art width based on slider value
+async function runDetection() {
+  if (!detectionModel) return;
+  try {
+    const preds = await detectionModel.detect(hiddenCanvas);
+    detections = preds;
+  } catch (e) {
+    console.error(e);
+  }
+}
 emojiDiv.style.width = sizeSlider.value + 'px';
 
 sizeSlider.addEventListener('input', () => {
@@ -121,6 +217,7 @@ imageInput.addEventListener('change', async event => {
   hiddenCanvas.height = img.height;
   ctx.drawImage(img, 0, 0);
   processCanvas();
+  runDetection();
 });
 
 function updateFrame() {
@@ -129,6 +226,7 @@ function updateFrame() {
   hiddenCanvas.height = video.videoHeight;
   ctx.drawImage(video, 0, 0);
   processCanvas();
+  runDetection();
   requestAnimationFrame(updateFrame);
 }
 
@@ -166,16 +264,39 @@ function processCanvas() {
   const numY = Math.ceil(hiddenCanvas.height / cellSize);
   emojiDiv.style.fontSize = emojiSize + 'px';
 
+  const grid = [];
   for (let y = 0; y < numY; y++) {
-    const line = document.createElement('div');
-    line.style.whiteSpace = 'nowrap';
+    grid[y] = [];
     for (let x = 0; x < numX; x++) {
       const sx = Math.floor(x * cellSize);
       const sy = Math.floor(y * cellSize);
       const color = getAverageColor(sx, sy, Math.ceil(cellSize));
-      const emoji = getClosestEmoji(color);
+      grid[y][x] = getClosestEmoji(color);
+    }
+  }
+
+  for (const det of detections) {
+    const [bx, by, bw, bh] = det.bbox;
+    const emoji = objectEmojis[det.class] || '❓';
+    const startX = Math.floor(bx / cellSize);
+    const startY = Math.floor(by / cellSize);
+    const endX = Math.min(numX, Math.ceil((bx + bw) / cellSize));
+    const endY = Math.min(numY, Math.ceil((by + bh) / cellSize));
+    for (let y = startY; y < endY; y++) {
+      for (let x = startX; x < endX; x++) {
+        if (y >= 0 && x >= 0 && y < numY && x < numX) {
+          grid[y][x] = emoji;
+        }
+      }
+    }
+  }
+
+  for (let y = 0; y < numY; y++) {
+    const line = document.createElement('div');
+    line.style.whiteSpace = 'nowrap';
+    for (let x = 0; x < numX; x++) {
       const span = document.createElement('span');
-      span.textContent = emoji;
+      span.textContent = grid[y][x];
       line.appendChild(span);
     }
     emojiDiv.appendChild(line);
