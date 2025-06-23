@@ -14,14 +14,26 @@
   #controls {
     margin-bottom: 20px;
   }
+  #viewer {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    flex-wrap: nowrap;
+    width: 100%;
+    max-width: 1980px;
+    margin: 0 auto;
+  }
   #emojiCanvas {
     font-size: 12px;
     line-height: 1;
     display: inline-block;
-    max-width: 800px;
     border: 1px solid #ccc;
     background: #fff;
     padding: 10px;
+    overflow: hidden;
+  }
+  #emojiCanvas div {
+    white-space: nowrap;
   }
   canvas {
     display: none;
@@ -29,7 +41,7 @@
   video {
     display: none;
     max-width: 100%;
-    margin-top: 10px;
+    margin-right: 10px;
   }
 </style>
 </head>
@@ -39,13 +51,15 @@
   <input type="file" id="imageInput" accept="image/*" />
   <button id="startCamera">Start Camera</button>
   <label for="sizeSlider">Width:</label>
-  <input type="range" id="sizeSlider" min="50" max="800" value="200" />
+  <input type="range" id="sizeSlider" min="50" max="1980" value="200" />
 </div>
-<div id="emojiCanvas"></div>
-<video id="video" autoplay></video>
+<div id="viewer">
+  <video id="video" autoplay></video>
+  <div id="emojiCanvas"></div>
+</div>
 <canvas id="hiddenCanvas"></canvas>
 <script>
-const EMOJI_SIZE = 12; // size of emoji characters in pixels
+const BASE_EMOJI_SIZE = 12; // base emoji character size in pixels
 
 const colorEmojis = [
   { emoji: '⬛', color: [0, 0, 0] },
@@ -146,13 +160,15 @@ function getClosestEmoji(color) {
 function processCanvas() {
   emojiDiv.innerHTML = '';
   if (hiddenCanvas.width === 0 || hiddenCanvas.height === 0) return;
-  const numX = Math.max(1, Math.floor(emojiDiv.clientWidth / EMOJI_SIZE));
+  const numX = Math.max(1, Math.floor(emojiDiv.clientWidth / BASE_EMOJI_SIZE));
+  const emojiSize = emojiDiv.clientWidth / numX;
   const cellSize = hiddenCanvas.width / numX;
   const numY = Math.ceil(hiddenCanvas.height / cellSize);
-  emojiDiv.style.fontSize = EMOJI_SIZE + 'px';
+  emojiDiv.style.fontSize = emojiSize + 'px';
 
   for (let y = 0; y < numY; y++) {
     const line = document.createElement('div');
+    line.style.whiteSpace = 'nowrap';
     for (let x = 0; x < numX; x++) {
       const sx = Math.floor(x * cellSize);
       const sy = Math.floor(y * cellSize);
