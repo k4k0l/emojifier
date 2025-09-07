@@ -22,7 +22,7 @@ def fetch_news() -> List[Dict[str, Any]]:
 
     response = client.responses.create(
         model="gpt-4.1",
-        instructions=(
+        input=(
             "Use web browsing to gather today's top world news. "
             "Return a JSON object with a key 'items' containing a list of "
             "objects with fields: id (slug), title, date, content, sources."),
