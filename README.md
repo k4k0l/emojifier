@@ -1,14 +1,29 @@
-# Emojifier
+# AI-Powered News Portal
 
-This web app turns images or webcam frames into colorful emoji mosaics. The width slider controls how wide the emoji art is and the camera button starts a live feed.
+This repository hosts a static news portal generated entirely through automation.
+It uses GitHub Pages for hosting and OpenAI APIs to fetch and process daily news
+summaries.  GitHub Actions run scheduled scripts that gather headlines, store
+them as JSON, de-duplicate related items, and build a daily index used by the
+frontend.
 
-The average colour of each block in the source image is matched to a coloured emoji. Additionally, a TensorFlow.js object detection model finds common objects and fills the matching blocks with fun emojis that represent them.
-The app also loads BodyPix to segment detected people. Each body part is replaced with its own emoji.
+## Repository Structure
 
-## Usage
+```
+news/      # individual news items in JSON
 
-1. Select an image or start the camera.
-2. The picture is divided into blocks that fit the art area (up to 1980px wide).
-3. Each block's average colour is matched to an emoji from the palette.
-4. Detected objects are overlaid with representative emojis.
-5. When using the camera the emoji art updates in real time.
+daily/     # daily index files
+
+public/    # frontend served by GitHub Pages
+scripts/   # CI scripts for fetching and processing news
+```
+
+## GitHub Actions
+
+The workflow in `.github/workflows/pipeline.yml` runs on a daily schedule. It
+fetches current events, updates the vector store, performs deduplication, builds
+the daily index, and commits the changes back to the repository.
+
+## Development
+
+The frontend is plain HTML/CSS/JS and can be previewed locally by serving the
+`public/` directory with any static file server.
