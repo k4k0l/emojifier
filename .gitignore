@@ -1,0 +1,4 @@
+node_modules
+.astro
+.vector_store_id
+__pycache__/

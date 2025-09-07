@@ -16,7 +16,7 @@ jobs:
         with:
           python-version: '3.x'
       - name: Install dependencies
-        run: pip install openai
+        run: pip install -r requirements.txt
       - name: Fetch news
         run: python scripts/fetch_news.py
       - name: Update vector store
@@ -25,6 +25,13 @@ jobs:
         run: python scripts/dedup_and_link.py
       - name: Generate daily index
         run: python scripts/generate_daily_index.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Build frontend
+        run: |
+          npm ci
+          npm run build
       - name: Commit and push
         run: |
           git config user.name 'github-actions'

@@ -1,0 +1,11 @@
+{
+  "name": "ai-news-portal",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "astro build"
+  },
+  "devDependencies": {
+    "astro": "^4.0.0"
+  }
+}
