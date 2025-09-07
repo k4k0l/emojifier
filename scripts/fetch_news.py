@@ -28,7 +28,7 @@ def fetch_news() -> List[Dict[str, Any]]:
             "objects with fields: id (slug), title, date, content, sources."),
         extra_body={
             "reasoning": {"effort": "medium"},
-            "dataSources": [{"type": "web"}],
+            "data_sources": [{"type": "web"}],
         },
     )
 
