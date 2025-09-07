@@ -13,7 +13,8 @@ news/      # individual news items in JSON
 
 daily/     # daily index files
 
-public/    # frontend served by GitHub Pages
+src/       # Astro source files
+public/    # static assets copied by Astro
 scripts/   # CI scripts for fetching and processing news
 ```
 
@@ -25,8 +26,16 @@ the daily index, and commits the changes back to the repository.
 
 ## Development
 
-The frontend is plain HTML/CSS/JS and can be previewed locally by serving the
-`public/` directory with any static file server.
+The frontend uses the [Astro](https://astro.build) framework. Build the static
+site with:
+
+```
+npm ci
+npm run build
+```
+
+The generated files are written to the `dist/` directory and can be served
+locally with any static file server.
 
 ## OpenAI Setup
 
@@ -35,3 +44,13 @@ The automation requires access to OpenAI's **Deep Research** API and the
 variable.  For GitHub Actions, create a repository secret named
 `OPENAI_API_KEY`.  Ensure that your OpenAI account has browsing and Deep
 Research enabled.
+
+## Testing
+
+Tests attempt a minimal OpenAI API call when `OPENAI_API_KEY` is present:
+
+```
+pytest
+```
+
+If the environment variable is not set the tests are skipped.
