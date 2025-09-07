@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  fetch_news:
     runs-on: ubuntu-latest
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -17,8 +17,23 @@ jobs:
           python-version: '3.x'
       - name: Install dependencies
         run: pip install -r requirements.txt
-      - name: Fetch news
-        run: python scripts/fetch_news.py
+      - name: Start async Deep Research
+        run: python scripts/start_fetch_news_async.py
+
+  build:
+    runs-on: ubuntu-latest
+    needs: fetch_news
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Check async result
+        run: python scripts/check_fetch_news_async.py
       - name: Update vector store
         run: python scripts/update_vector_store.py
       - name: Deduplicate
