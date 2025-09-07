@@ -12,40 +12,53 @@ from openai import OpenAI
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 
-def fetch_news() -> List[Dict[str, Any]]:
-    """Use the Deep Research API to retrieve today's news.
-
-    The model is instructed to return a JSON object with an ``items`` list.
-    Each item should contain ``id``, ``title``, ``date``, ``content`` and
-    ``sources``.
-    """
+def _query_news(region_prompt: str, max_attempts: int = 5) -> List[Dict[str, Any]]:
+    """Execute a single Deep Research query with retry logic."""
 
     system_prompt = (
-        "You are a researcher. Gather today's top news "
-        "and return a JSON object: items list with fields "
-        "id (slug), title, date, content, sources (list of URLs)."
-    )
-    user_prompt = (
-        "Please gather current events and format response in JSON."
+        "Jesteś badaczem. Zbierz dzisiejsze najważniejsze wiadomości "
+        "i zwróć obiekt JSON: lista items z polami id (slug), "
+        "title, date, content, sources (lista URL)."
     )
 
-    response = client.responses.create(
-        model="o4-mini-deep-research-2025-06-26",
-        input=[
-            {"role": "developer", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ],
-        tools=[{"type": "web_search_preview"}],
-        reasoning={"summary": "auto"}
+    for attempt in range(1, max_attempts + 1):
+        try:
+            response = client.responses.create(
+                model="o4-mini-deep-research",
+                input=[
+                    {"role": "developer", "content": system_prompt},
+                    {"role": "user", "content": region_prompt},
+                ],
+                tools=[{"type": "web_search_preview"}],
+                reasoning={"summary": "auto"},
+            )
+
+            output_text = response.output[-1].content[0].text
+            payload = json.loads(output_text)
+            return payload.get("items", [])
+        except Exception:
+            if attempt == max_attempts:
+                raise
+
+    return []
+
+
+def fetch_news() -> List[Dict[str, Any]]:
+    """Retrieve today's news from Poland and worldwide using Deep Research."""
+
+    items: List[Dict[str, Any]] = []
+
+    polish_prompt = (
+        "Proszę zbierz aktualne wiadomości z Polski i sformatuj odpowiedź w JSON."
+    )
+    world_prompt = (
+        "Proszę zbierz aktualne wiadomości z całego świata i sformatuj odpowiedź w JSON."
     )
 
-    output_text = response.output[-1].content[0].text
-    try:
-        payload = json.loads(output_text)
-    except Exception as e:
-        raise RuntimeError(f"Model response was not valid JSON: {e}")
+    items.extend(_query_news(polish_prompt))
+    items.extend(_query_news(world_prompt))
 
-    return payload.get("items", [])
+    return items
 
 
 def main() -> None:
