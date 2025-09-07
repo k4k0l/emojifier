@@ -8,13 +8,19 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.x'
+      - name: Install dependencies
+        run: pip install openai
       - name: Fetch news
         run: python scripts/fetch_news.py
+      - name: Update vector store
+        run: python scripts/update_vector_store.py
       - name: Deduplicate
         run: python scripts/dedup_and_link.py
       - name: Generate daily index
