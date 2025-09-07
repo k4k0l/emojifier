@@ -1,0 +1,28 @@
+name: daily-news
+
+on:
+  schedule:
+    - cron: '10 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Fetch news
+        run: python scripts/fetch_news.py
+      - name: Deduplicate
+        run: python scripts/dedup_and_link.py
+      - name: Generate daily index
+        run: python scripts/generate_daily_index.py
+      - name: Commit and push
+        run: |
+          git config user.name 'github-actions'
+          git config user.email 'github-actions@github.com'
+          git add .
+          git commit -m 'chore: update news' || echo 'nothing to commit'
+          git push
