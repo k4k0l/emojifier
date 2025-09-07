@@ -27,3 +27,11 @@ the daily index, and commits the changes back to the repository.
 
 The frontend is plain HTML/CSS/JS and can be previewed locally by serving the
 `public/` directory with any static file server.
+
+## OpenAI Setup
+
+The automation requires access to OpenAI's **Deep Research** API and the
+`text-embedding-3-small` model.  Locally, set the `OPENAI_API_KEY` environment
+variable.  For GitHub Actions, create a repository secret named
+`OPENAI_API_KEY`.  Ensure that your OpenAI account has browsing and Deep
+Research enabled.
